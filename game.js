@@ -1,9 +1,9 @@
-var game = new Phaser.Game(700, 350, Phaser.AUTO, '', {
+var game = new Phaser.Game(360, 180, Phaser.AUTO, '', {
   preload: preload, create: create, update: update
 });
 
 var map, collisionLayer, cursors;
-var player, enemy, goal, won;
+var player, enemies, goal, won;
 
 // Tiled 1.2+ exports properties as an array; this turns them into a plain object
 function props(p) {
@@ -17,7 +17,7 @@ function props(p) {
 
 function preload() {
   game.load.tilemap('level', 'assets/maps/level1.json', null, Phaser.Tilemap.TILED_JSON);
-  game.load.spritesheet('tiles', 'assets/images/tiles.png', 35, 35);
+  game.load.spritesheet('tiles', 'assets/images/tilemap_packed.png', 18, 18);
 }
 
 function create() {
@@ -27,15 +27,15 @@ function create() {
 
   // 1st argument = tileset name in Tiled, 2nd = image key from preload
   map = game.add.tilemap('level');
-  map.addTilesetImage('tiles', 'tiles');
+  map.addTilesetImage('tilemap_packed', 'tiles');
 
   map.createLayer('background');
   collisionLayer = map.createLayer('collision');
   map.setCollisionBetween(1, 1000, true, 'collision');
   collisionLayer.resizeWorld();
 
-  // 'objects' = the object layer name in Tiled
-  map.objects['objects'].forEach(createObject);
+  enemies = game.add.group();
+  map.objects['objects'].forEach(createObject); // 'objects' = the object layer name in Tiled
 
   cursors = game.input.keyboard.createCursorKeys();
 }
@@ -60,7 +60,8 @@ function createObject(obj) {
     sprite.walkingDistance = Number(p.walking_distance);
     sprite.startX = sprite.x;
     sprite.body.velocity.x = Number(p.direction) * sprite.walkingSpeed;
-    enemy = sprite;
+    // enemy = sprite;
+    enemies.add(sprite);
   } else if (obj.name === 'goal') {
     sprite.body.allowGravity = false;
     sprite.body.immovable = true;
@@ -70,8 +71,8 @@ function createObject(obj) {
 
 function update() {
   game.physics.arcade.collide(player, collisionLayer);
-  game.physics.arcade.collide(enemy, collisionLayer);
-  game.physics.arcade.overlap(player, enemy, hitEnemy);
+  game.physics.arcade.collide(enemies, collisionLayer);
+  game.physics.arcade.overlap(player, enemies, hitEnemy);
   game.physics.arcade.overlap(player, goal, reachGoal);
 
   // player movement
@@ -91,11 +92,13 @@ function update() {
   }
 
   // enemy patrol
-  if (Math.abs(enemy.x - enemy.startX) >= enemy.walkingDistance) {
-    enemy.body.velocity.x *= -1;
-    enemy.startX = enemy.x;
-    enemy.scale.x *= -1;
-  }
+  enemies.forEachAlive(function (en) {
+    if (Math.abs(en.x - en.startX) >= en.walkingDistance) {
+    en.body.velocity.x *= -1;
+    en.startX = en.x;
+    en.scale.x *= -1;
+    }
+  });
 }
 
 function hitEnemy(pl, en) {
